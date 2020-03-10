@@ -1,55 +1,59 @@
 import requests
 import warnings
+import os
 
-USERNAME = "putYourGitHubUsernameHere"
-TOKEN = "putYourTokenHere"
+USERNAME = 'putYourGitHubUsernameHere'
+TOKEN = 'putYourTokenHere'
+DEBUG = False
 
 try:
-    from config import USERNAME, TOKEN
+    from config import USERNAME, TOKEN, DEBUG
 except ImportError:
     pass
 
 
 def debug(*args, **kwargs):
-    print(*args, **kwargs)
+    if DEBUG:
+        from pprint import pprint
+        pprint(*args, **kwargs)
 
 
 def main():
-    global initial_path
-    owner = input("Please enter the repo owner name:")
-    if owner == "":
-        print("Owner cannot be empty")
+    owner = input('Please enter the repo owner name: ')
+    if owner == '':
+        print('Owner cannot be empty')
         exit(1)
-    repo = input("Please enter the repo name:")
-    if repo == "":
-        print("Repo cannot be empty")
+    repo = input('Please enter the repo name: ')
+    if repo == '':
+        print('Repo cannot be empty')
         exit(1)
-    branch = input(
-        "Please enter the branch name (default: repo's default branch):")
-    folder_path = input("Please enter the folder path (default: /):")
-    # TODO direct clone if empty
-    folder_path = proper_filepath(folder_path)
-    initial_path = folder_path
+    branch = input('Please enter the branch name (default: repo\'s default branch): ')
+    folder_path = input('Please enter the folder path (default: /): ')
     get_folder_from_repo(owner, repo, branch, folder_path)
 
 
-def get_folder_from_repo(owner, repo, branch="", folder_path="/"):
-    url = f"https://api.github.com/repos/{owner}/{repo}/contents{folder_path}"
-    if branch != "":
-        url += f"?ref={branch}"
+def get_folder_from_repo(owner: str, repo: str, branch: str = '', folder_path: str = '/'):
+    folder_path = proper_filepath(folder_path)
+    if folder_path == '/':
+        # TODO clone and exit (Take care of branch also)
+        pass
+    
+    url = f'https://api.github.com/repos/{owner}/{repo}/contents{folder_path}'
+    if branch != '':
+        url += f'?ref={branch}'
     debug(url)
 
     r = requests.get(url, auth=(USERNAME, TOKEN))
     data = r.json()
     if type(data) == type(dict()):
-        assert data['type'] == "file"
+        assert data['type'] == 'file'
         download_file(data['download_url'], data['path'])
     elif type(data) == type(list()):
         for d in data:
             if d['type'] == 'file':
                 download_file(d['download_url'], d['path'])
             elif d['type'] == 'dir':
-                get_folder_from_repo(owner, repo, branch, "/"+d['path'])
+                get_folder_from_repo(owner, repo, branch, d['path'])
             else:
                 print(f'Incorrect type: {d["type"]}')
 
@@ -58,41 +62,24 @@ def proper_filepath(filepath: str) -> str:
     # should start with /
     # should not end with /
     # so it should be / or /a or /a.../b
-    return "/" + filepath.strip('/')
+    return '/' + filepath.strip('/')
 
-
-def download_file(url, path):
-    global initial_path
-    import pathlib
-    import os
-
+def download_file(url: str, path: str) -> None:
     debug(f'Downloading file: {url}')
     print(f'Downloading file: {path}')
 
-    proper_path = proper_filepath(path)
-    proper_intial = proper_filepath(initial_path)
-    if (proper_path).startswith(proper_intial):
-        new_path = os.path.relpath(proper_path, start=proper_intial)
+    proper_path = proper_filepath(path)[1:]
+    
+    if proper_path.startswith('..' + os.path.sep) or proper_path.startswith(os.path.sep):
+        warnings.warn(f'Error in path. Skipping the file: {path}')
+        debug(f'Path: {proper_path}')
     else:
-        warnings.warn("Error in path")
-        debug(f'InitialPath={proper_intial}, Path={new_path}')
-
-    print(f'Downloading file: {new_path}')
-    if new_path.startswith('..' + os.path.sep) or new_path.startswith(os.path.sep):
-        warnings.warn("Error in path. Skipping the file: path")
-        debug(f'ProperPath: {new_path}')
-    else:
-        if os.path.dirname(new_path):
-            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        if os.path.dirname(proper_path):
+            os.makedirs(os.path.dirname(proper_path), exist_ok=True)
         r = requests.get(url)
-        with open(new_path, 'wb+') as f:
+        with open(proper_path, 'wb+') as f:
             f.write(r.content)
 
 
-if __name__ == "__main__":
-    initial_path = "/"
-    # di0002ya/ESS/tree/master/data/NASA
-    # get_folder_from_repo("AliabbasMerchant",
-    #                      "SecureNotes", "", "/")
-    get_folder_from_repo("di0002ya",
-                         "ESS", "", "/data/NASA")
+if __name__ == '__main__':
+    main()
