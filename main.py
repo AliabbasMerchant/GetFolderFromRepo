@@ -82,4 +82,26 @@ def download_file(url: str, path: str) -> None:
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    if sys.argv[1]:
+        try:
+            url = sys.argv[1].strip('/') + '/'
+            url = url[url.index('github.com') + len('github.com') + 1:]
+            owner = url[:url.index('/')]
+            url = url[url.index('/') + 1:]
+            repo = url[:url.index('/')]
+            url = url[url.index('/'):]
+            if url.startswith('/tree'):
+                url = url[len('/tree/'):]
+                branch = url[:url.index('/')]
+                folder_path = url[url.index('/') + 1:]
+            else:
+                branch = ''
+                folder_path = '/'
+            # print(owner, repo, branch, folder_path, sep='\n')
+        except ValueError:
+            print('Please enter a valid GitHub URL')
+            exit(-1)
+        get_folder_from_repo(owner, repo, branch, folder_path)
+    else:
+        main()
