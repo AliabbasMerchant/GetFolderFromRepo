@@ -3,14 +3,21 @@ import requests
 import warnings
 import os
 
-USERNAME = 'putYourGitHubUsernameHere'
-TOKEN = 'putYourTokenHere'
+USERNAME = ''  # put your GitHub username here
+TOKEN = ''  # put your token here
 DEBUG = False
 
 try:
     from config import USERNAME, TOKEN, DEBUG
 except ImportError:
     pass
+
+if len(USERNAME) == 0:
+    print("Please Set your Github Username")
+    exit(-1)
+if len(TOKEN) == 0:
+    print("Please Set your Github Token")
+    exit(-1)
 
 
 def debug(*args, **kwargs):
@@ -71,7 +78,7 @@ def download_file(url: str, path: str, last_element: str) -> None:
     if os.path.dirname(new_path):
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
     debug(f'Saving file: {new_path}')
-    r = requests.get(url)
+    r = requests.get(url, auth=(USERNAME, TOKEN))
     with open(new_path, 'wb+') as f:
         f.write(r.content)
 
