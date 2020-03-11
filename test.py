@@ -16,5 +16,23 @@ def test_proper_filepath():
         is_valid_filepath(proper_path)
 
 
+def test_rel_path():
+    import os
+    for data in [
+        ("https://github.com/owner/repo", "repo", "file", "repo/file"),
+        ("https://github.com/owner/repo", "repo", "folder1/file", "repo/folder1/file"),
+        ("https://github.com/owner/repo/tree/branch/folder1", "folder1", "folder1/file", "folder1/file"),
+        ("https://github.com/owner/repo/tree/branch/folder1/folder2", "folder2", "folder1/folder2/file", "folder2/file"),
+        ("https://github.com/owner/repo/blob/branch/folder1/folder2/file", "file", "folder1/folder2/file", "file"),
+    ]:
+        url, last_element, path, new_path = data
+        assert url[url.rindex('/') + 1:] == last_element
+        if last_element in path:
+            assert path[path.index(last_element):] == new_path
+        else:
+            assert last_element + os.path.sep + path == new_path
+
+
 if __name__ == "__main__":
     test_proper_filepath()
+    test_rel_path()

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import requests
 import warnings
 import os
@@ -14,31 +15,15 @@ except ImportError:
 
 def debug(*args, **kwargs):
     if DEBUG:
-        from pprint import pprint
-        pprint(*args, **kwargs)
+        print(*args, **kwargs)
 
 
-def main():
-    owner = input('Please enter the repo owner name: ')
-    if owner == '':
-        print('Owner cannot be empty')
-        exit(1)
-    repo = input('Please enter the repo name: ')
-    if repo == '':
-        print('Repo cannot be empty')
-        exit(1)
-    branch = input('Please enter the branch name (default: repo\'s default branch): ')
-    folder_path = input('Please enter the folder path (default: /): ')
-    get_folder_from_repo(owner, repo, branch, folder_path)
-
-
-def get_folder_from_repo(owner: str, repo: str, branch: str = '', folder_path: str = '/'):
-    folder_path = proper_filepath(folder_path)
-    if folder_path == '/':
+def get_folder_from_repo(owner: str, repo: str, branch: str = '', proper_folder_path: str = '/'):
+    if proper_folder_path == '/':
         # TODO clone and exit (Take care of branch also)
         pass
     
-    url = f'https://api.github.com/repos/{owner}/{repo}/contents{folder_path}'
+    url = f'https://api.github.com/repos/{owner}/{repo}/contents{proper_folder_path}'
     if branch != '':
         url += f'?ref={branch}'
     debug(url)
@@ -53,7 +38,7 @@ def get_folder_from_repo(owner: str, repo: str, branch: str = '', folder_path: s
             if d['type'] == 'file':
                 download_file(d['download_url'], d['path'])
             elif d['type'] == 'dir':
-                get_folder_from_repo(owner, repo, branch, d['path'])
+                get_folder_from_repo(owner, repo, branch, proper_filepath(d['path']))
             else:
                 print(f'Incorrect type: {d["type"]}')
 
@@ -80,10 +65,17 @@ def download_file(url: str, path: str) -> None:
         with open(proper_path, 'wb+') as f:
             f.write(r.content)
 
+def show_help():
+    print(f"""USAGE:
+    {__file__} <GitHub URL of the folder/file>
+    """)
 
 if __name__ == '__main__':
     import sys
-    if sys.argv[1]:
+    if len(sys.argv) == 2:
+        if sys.argv[1] == "-h" or sys.argv[1] == "--help":
+            show_help()
+            exit()
         try:
             url = sys.argv[1].strip('/') + '/'
             url = url[url.index('github.com') + len('github.com') + 1:]
@@ -98,10 +90,11 @@ if __name__ == '__main__':
             else:
                 branch = ''
                 folder_path = '/'
-            # print(owner, repo, branch, folder_path, sep='\n')
+            debug(owner, repo, branch, folder_path, sep='\n')
         except ValueError:
-            print('Please enter a valid GitHub URL')
+            print('Please enter a valid GitHub Folder/File URL')
+            show_help()
             exit(-1)
-        get_folder_from_repo(owner, repo, branch, folder_path)
+        get_folder_from_repo(owner, repo, branch, proper_filepath(folder_path))
     else:
-        main()
+        show_help()
