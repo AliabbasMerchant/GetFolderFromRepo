@@ -1,4 +1,4 @@
-from main import *
+from getFolderFromRepo import *
 
 
 def test_proper_filepath():
@@ -26,11 +26,8 @@ def test_rel_path():
         ("https://github.com/owner/repo/blob/branch/folder1/folder2/file", "file", "folder1/folder2/file", "file"),
     ]:
         url, last_element, path, new_path = data
-        assert url[url.rindex('/') + 1:] == last_element
-        if last_element in path:
-            assert path[path.index(last_element):] == new_path
-        else:
-            assert last_element + os.path.sep + path == new_path
+        assert get_last_element(url) == last_element
+        assert get_new_path(path, last_element) == new_path
 
 
 if __name__ == "__main__":
