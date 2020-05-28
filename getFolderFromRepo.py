@@ -3,26 +3,37 @@ import requests
 import warnings
 import os
 
-USERNAME = ''  # put your GitHub username here
-TOKEN = ''  # put your token here
-DEBUG = False
+USERNAME: str = ''
+TOKEN: str = ''
+SHOW_INFO_LOGS: bool = True
+SHOW_DEBUG_LOGS: bool = False
 
 try:
-    from config import USERNAME, TOKEN, DEBUG
+    from config import *
 except ImportError:
     pass
 
 if len(USERNAME) == 0:
-    print("Please Set your Github Username")
-    exit(-1)
+    env_username = os.environ.get('GITHUB_USERNAME', '')
+    if env_username != '':
+        USERNAME = env_username
+    else:
+        warnings.warn('GitHub Username not set')
 if len(TOKEN) == 0:
-    print("Please Set your Github Token")
-    exit(-1)
+    env_token = os.environ.get('GITHUB_TOKEN', '')
+    if env_token != '':
+        TOKEN = env_token
+    else:
+        warnings.warn('GitHub Token not set')
 
 
-def debug(*args, **kwargs):
-    if DEBUG:
-        print(*args, **kwargs)
+def log(*args, is_debug: bool = False, **kwargs) -> None:
+    if is_debug:
+        if SHOW_DEBUG_LOGS:
+            print('Debug:', *args, **kwargs)
+    else:
+        if SHOW_INFO_LOGS or SHOW_DEBUG_LOGS:
+            print(*args, **kwargs)
 
 
 def proper_filepath(filepath: str) -> str:
@@ -43,7 +54,7 @@ def get_new_path(path: str, last_element: str) -> str:
         return last_element + os.path.sep + path
 
 
-def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: str, branch: str = '', ):
+def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: str, branch: str = '') -> None:
     proper_folder_path = proper_filepath(folder_path)
     if proper_folder_path == '/':
         # TODO clone and exit (Take care of branch also)
@@ -52,7 +63,7 @@ def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: 
     url = f'https://api.github.com/repos/{owner}/{repo}/contents{proper_folder_path}'
     if branch != '':
         url += f'?ref={branch}'
-    debug('Folder URL: ', url)
+    log('Folder URL: ', url, is_debug=True)
 
     r = requests.get(url, auth=(USERNAME, TOKEN))
     data = r.json()
@@ -67,18 +78,20 @@ def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: 
                 get_folder_from_repo(
                     owner, repo, d['path'], last_element, branch)
             else:
-                print(f'Incorrect type: {d["type"]}')
+                log(f'Incorrect type: {d["type"]}', is_debug=True)
+                print('Sorry, an error occurred')
+                exit(-1)
 
 
 def download_file(url: str, path: str, last_element: str) -> None:
-    debug(f'Downloading file: {url}')
-    print(f'Downloading file: {path}')
-
     new_path = get_new_path(path, last_element)
+    log(f'Downloading file: {new_path}')
+
+    log(f'Downloading file: {url}', is_debug=True)
+    r = requests.get(url, auth=(USERNAME, TOKEN))
+    log(f'Saving file: {new_path}', is_debug=True)
     if os.path.dirname(new_path):
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
-    debug(f'Saving file: {new_path}')
-    r = requests.get(url, auth=(USERNAME, TOKEN))
     with open(new_path, 'wb+') as f:
         f.write(r.content)
 
@@ -110,7 +123,10 @@ if __name__ == '__main__':
             else:
                 branch = ''
                 folder_path = '/'
-            debug(owner, repo, branch, folder_path, sep='\n')
+            log(f'Owner: {owner}', is_debug=True)
+            log(f'Repo: {repo}', is_debug=True)
+            log(f'Branch: {branch}', is_debug=True)
+            log(f'FolderPath: {folder_path}', is_debug=True)
         except ValueError:
             print('Please enter a valid GitHub Folder/File URL')
             show_help()
