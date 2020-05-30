@@ -116,10 +116,15 @@ if __name__ == '__main__':
             url = url[url.index('/') + 1:]
             repo = url[:url.index('/')]
             url = url[url.index('/'):]
-            if url.startswith('/tree'):
+            if url.startswith('/tree'): # its a folder
                 url = url[len('/tree/'):]
                 branch = url[:url.index('/')]
                 folder_path = url[url.index('/') + 1:]
+            elif url.startswith('/blob'): # its a file
+                url = url[len('/blob/'):]
+                branch = url[:url.index('/')]
+                file_path = url[url.index('/') + 1:]
+                folder_path = file_path
             else:
                 branch = ''
                 folder_path = '/'
