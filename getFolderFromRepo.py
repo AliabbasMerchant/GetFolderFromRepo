@@ -27,6 +27,22 @@ if len(TOKEN) == 0:
         warnings.warn('GitHub Token not set')
 
 
+def decouple_url(url: str) -> dict:
+    
+    tmp_url = url
+    tmp_url = tmp_url.strip('/') + str('/')
+    tmp_url = tmp_url[tmp_url.index('github.com'):]
+    tokens = tmp_url.split('/')
+
+    if tokens[3]!='':
+        branch = tokens[4]
+        path = url[url.index(branch)+len(branch)+1:]
+    else:
+        branch = ''
+        path = '/'
+
+    return {'owner': tokens[1], 'repo': tokens[2], 'path': path, 'last_element': get_last_element(url), 'branch': branch}
+
 def log(*args, is_debug: bool = False, **kwargs) -> None:
     if is_debug:
         if SHOW_DEBUG_LOGS:
@@ -54,8 +70,8 @@ def get_new_path(path: str, last_element: str) -> str:
         return last_element + os.path.sep + path
 
 
-def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: str, branch: str = '') -> None:
-    proper_folder_path = proper_filepath(folder_path)
+def get_item_from_repo(owner: str, repo: str, path: str, last_element: str, branch: str = '') -> None:
+    proper_folder_path = proper_filepath(path)
     if proper_folder_path == '/':
         # TODO clone and exit (Take care of branch also)
         pass
@@ -67,15 +83,15 @@ def get_folder_from_repo(owner: str, repo: str, folder_path: str, last_element: 
 
     r = requests.get(url, auth=(USERNAME, TOKEN))
     data = r.json()
-    if type(data) == type(dict()):
+    if type(data) == dict:
         assert data['type'] == 'file'
         download_file(data['download_url'], data['path'], last_element)
-    elif type(data) == type(list()):
+    elif type(data) == list:
         for d in data:
             if d['type'] == 'file':
                 download_file(d['download_url'], d['path'], last_element)
             elif d['type'] == 'dir':
-                get_folder_from_repo(
+                get_item_from_repo(
                     owner, repo, d['path'], last_element, branch)
             else:
                 log(f'Incorrect type: {d["type"]}', is_debug=True)
@@ -109,34 +125,36 @@ if __name__ == '__main__':
             show_help()
             exit()
         try:
-            URL = sys.argv[1]
-            url = sys.argv[1].strip('/') + '/'
-            url = url[url.index('github.com') + len('github.com') + 1:]
-            owner = url[:url.index('/')]
-            url = url[url.index('/') + 1:]
-            repo = url[:url.index('/')]
-            url = url[url.index('/'):]
-            if url.startswith('/tree'): # its a folder
-                url = url[len('/tree/'):]
-                branch = url[:url.index('/')]
-                folder_path = url[url.index('/') + 1:]
-            elif url.startswith('/blob'): # its a file
-                url = url[len('/blob/'):]
-                branch = url[:url.index('/')]
-                file_path = url[url.index('/') + 1:]
-                folder_path = file_path
-            else:
-                branch = ''
-                folder_path = '/'
-            log(f'Owner: {owner}', is_debug=True)
-            log(f'Repo: {repo}', is_debug=True)
-            log(f'Branch: {branch}', is_debug=True)
-            log(f'FolderPath: {folder_path}', is_debug=True)
+            url_details = decouple_url(sys.argv[1])
+
+            log(f'Owner: {url_details["owner"]}', is_debug=True)
+            log(f'Repo: {url_details["repo"]}', is_debug=True)
+            log(f'Branch: {url_details["branch"]}', is_debug=True)
+            log(f'Path: {url_details["path"]}', is_debug=True)
+
         except ValueError:
             print('Please enter a valid GitHub Folder/File URL')
             show_help()
             exit(-1)
-        get_folder_from_repo(owner, repo, folder_path,
-                             get_last_element(URL), branch)
+
+        get_item_from_repo(**url_details)
+
+    elif len(sys.argv) > 2:
+        for url in sys.argv[1:]:
+            try:
+                url_details = decouple_url(url)
+
+                log(f'Owner: {url_details["owner"]}', is_debug=True)
+                log(f'Repo: {url_details["repo"]}', is_debug=True)
+                log(f'Branch: {url_details["branch"]}', is_debug=True)
+                log(f'Path: {url_details["path"]}', is_debug=True)
+
+            except ValueError:
+                print('Please enter a valid GitHub Folder/File URL')
+                show_help()
+                exit(-1)
+
+            get_item_from_repo(**url_details)
+
     else:
         show_help()
